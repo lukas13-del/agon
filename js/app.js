@@ -223,7 +223,7 @@ function renderToday(xpData, fig) {
   const lastMeas = (state.meas || []).map(m => m.d).sort().pop();
   const lastPhoto = photoDates().pop();
   const due = [];
-  if (!state.profile || !state.profile.wrist || !state.profile.height) due.push('Grösse und Handgelenk');
+  if (!state.profile || !state.profile.wrist || !state.profile.height) due.push('Grunddaten');
   if (!lastMeas || daysSince(lastMeas) >= 14) due.push('Messung');
   if (!lastPhoto || daysSince(lastPhoto) >= 28) due.push('Fotos');
   if (due.length) h += `<button class="due" data-act="go" data-view="body"><span>${due.join(', ').replace(/, ([^,]*)$/, ' und $1')} fällig</span><span class="muted">Körper ›</span></button>`;
