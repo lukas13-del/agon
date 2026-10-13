@@ -1,7 +1,7 @@
 // Logik: Programmablauf, Gewichtsvorschläge, Punkte, Figur, Kalorien, Statistik
 import {
   EX, EQ, KINO_STEP, BLOCKS, LOOP, SPEC, NECK_SAT, PLUS, FEIN, MOB, MAIN_SESSIONS, RANKS, STANDARDS, LEVEL_XP,
-  KEY_LIFTS, LABOURS, LABOUR_XP,
+  KEY_LIFTS, LABOURS, LABOUR_XP, EX_MUSCLES,
 } from './data.js';
 
 export const DEFAULT_SETTINGS = { neckSat: true, deadliftAlt: true, specA: 'brust', specB: 'ruecken', days: [2, 4, 6], plus: true, fein: true };
@@ -156,8 +156,12 @@ export function planExercise(t, state, mods = {}) {
         else up = allTop;
       }
       if (up) w = r2(w + eq.inc);
+      // Ziel klar verfehlt: etwas leichter, damit die Wiederholungen wieder in den Bereich kommen
+      let down = false;
+      const ls_j = last.sets[j];
+      if (canUp && !up && ls_j && ls_j.done && ls_j.r < ls_j.lo && w > 0) { w = roundTo(w * 0.95, eq.round); down = true; }
       if (mods.deload) w = roundTo(w * 0.9, eq.round);
-      s.w = w; s.up = up; s.prev = last.sets[j] && last.sets[j].done ? { w: last.sets[j].w, r: last.sets[j].r } : null;
+      s.w = w; s.up = up; s.down = down; s.prev = ls_j && ls_j.done ? { w: ls_j.w, r: ls_j.r, rir: ls_j.rir } : null;
     });
   } else if (def.eq === 'bw') {
     sets.forEach(s => { s.w = 0; });
@@ -636,6 +640,24 @@ export function seriesFor(state, exId) {
     if (m > 0) out.push({ d: s.date, v: m });
   }
   return out;
+}
+
+// Harte Sätze pro Muskel in der Woche ab Montag mondayIso. Rest-Pause zählt wie zwei Sätze.
+export function weekVolume(state, mondayIso, includeActive = true) {
+  const vol = {};
+  const add = ses => {
+    if (ses.kind === 'mob' || weekKey(ses.date) !== mondayIso) return;
+    for (const e of ses.ex) {
+      const m = EX_MUSCLES[e.ex];
+      if (!m || e.skipped) continue;
+      let n = 0;
+      for (const x of e.sets) if (x.done) n += x.kind === 'act' ? 2 : x.kind === 'work' ? 1 : 0;
+      for (const [k, f] of Object.entries(m)) vol[k] = (vol[k] || 0) + n * f;
+    }
+  };
+  state.sessions.forEach(add);
+  if (includeActive && state.active) add(state.active);
+  return vol;
 }
 
 export function totals(state) {

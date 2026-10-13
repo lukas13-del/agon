@@ -279,3 +279,32 @@ main.session { padding-bottom: calc(var(--safe-b) + 24px); min-height: 100vh; mi
 .measfig .mc { fill: var(--moss); }
 .measfig .mt { fill: var(--on-moss); font-family: var(--f-mono); font-size: 10px; font-weight: 700; text-anchor: middle; }
 .mno { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--moss); color: var(--on-moss); font-family: var(--f-mono); font-size: 10.5px; margin-right: 7px; vertical-align: 1px; }
+
+/* Schwere, Volumen, Fotos, Fälligkeiten */
+.down { color: var(--danger); font-weight: 700; }
+.rir { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rir button { padding: 10px 4px; border-radius: 12px; border: 1px solid var(--line); font-size: 13px; color: var(--stone); background: var(--bg); }
+.rir button.on { border-color: var(--moss); background: var(--moss-soft); color: var(--moss); font-weight: 600; }
+.vols { display: flex; flex-direction: column; gap: 12px; }
+.vol { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.vbar { position: relative; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; display: block; }
+.vbar em { position: absolute; top: 0; bottom: 0; background: var(--moss-soft); }
+.vbar i { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--stone); border-radius: 3px; }
+.vol.ok .vbar i { background: var(--moss); }
+.vol.hi .vbar i { background: var(--wood); }
+.due { display: flex; justify-content: space-between; gap: 10px; padding: 9px 14px; border-radius: 12px; background: var(--wood-soft); color: var(--wood); font-size: 13.5px; font-weight: 600; text-align: left; width: 100%; margin-top: -6px; }
+.due .muted { font-weight: 400; }
+.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pthumb { position: relative; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); max-width: 100%; }
+.pthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pthumb span { position: absolute; left: 6px; bottom: 6px; font-size: 11px; background: var(--paper); border-radius: 99px; padding: 2px 8px; }
+.pthumb.empty { display: grid; place-items: center; color: var(--stone); }
+.pthumb.empty span { position: static; background: none; }
+.pshoot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pslot { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pslot img, .pslot .pempty { aspect-ratio: 3 / 4; width: 100%; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+.pslot .btn { width: 100%; padding: 0 6px; }
+.pempty { display: grid; place-items: center; color: var(--stone); font-size: 13px; background: var(--bg); border-radius: 12px; border: 1px dashed var(--line); aspect-ratio: 3 / 4; }
+.pbig { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 14px; background: var(--bg); }
+.pcmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pcmp img, .pcmp .pempty { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }

@@ -1,0 +1,3 @@
+# Persönliche Dateien nie ins öffentliche Repository
+agon-*.json
+*.sicherung.json

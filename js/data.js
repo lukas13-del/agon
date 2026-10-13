@@ -489,6 +489,41 @@ export const MEASURES = [
   { k: 'thigh', label: 'Oberschenkel', hint: 'Stehend, Gewicht auf beiden Beinen. Dickste Stelle direkt unter dem Gesäss.' },
 ];
 
+// Wochenvolumen: Zielbereich harte Sätze pro Woche (Agon Plus, ohne Waden)
+export const MUSCLES = [
+  { k: 'side_delt', label: 'Seitliche Schulter', lo: 12, hi: 16 },
+  { k: 'chest', label: 'Brust, vor allem obere', lo: 10, hi: 14 },
+  { k: 'lats', label: 'Lat, Rückenbreite', lo: 10, hi: 14 },
+  { k: 'upper_back', label: 'Hintere Schulter, oberer Rücken', lo: 8, hi: 12 },
+  { k: 'biceps', label: 'Bizeps', lo: 8, hi: 12 },
+  { k: 'triceps', label: 'Trizeps', lo: 8, hi: 12 },
+  { k: 'quads', label: 'Oberschenkel vorne', lo: 6, hi: 10 },
+  { k: 'hams', label: 'Oberschenkel hinten, Gesäss', lo: 6, hi: 10 },
+  { k: 'abs', label: 'Bauch, Rumpf', lo: 8, hi: 12 },
+  { k: 'neck', label: 'Nacken, Trapez', lo: 4, hi: 8 },
+  { k: 'forearms', label: 'Unterarm, Griff', lo: 2, hi: 6 },
+];
+// Anteil pro Satz: 1 = direkt, 0.5 = mittrainiert
+export const EX_MUSCLES = {
+  inc_bb_press: { chest: 1, triceps: 0.5 }, inc_db_press: { chest: 1, triceps: 0.5 }, flat_bb_bench: { chest: 1, triceps: 0.5 },
+  flat_db_press: { chest: 1, triceps: 0.5 }, machine_press: { chest: 1, triceps: 0.5 }, weighted_dip: { chest: 1, triceps: 0.5 },
+  close_grip_bench: { triceps: 1, chest: 0.5 }, cable_crossover: { chest: 1 }, cable_fly_low: { chest: 1 },
+  standing_press: { side_delt: 0.5, triceps: 0.5 }, arnold: { side_delt: 0.5, triceps: 0.5 },
+  lateral_raise: { side_delt: 1 }, cable_lateral: { side_delt: 1 }, db_upright_row: { side_delt: 1, neck: 0.5 },
+  face_pull: { upper_back: 1 }, seated_rev_fly: { upper_back: 1 }, machine_rear_delt: { upper_back: 1 },
+  weighted_chinup: { lats: 1, biceps: 0.5 }, weighted_cg_chinup: { lats: 1, biceps: 0.5 }, weighted_pullup: { lats: 1, upper_back: 0.5 },
+  lat_pulldown: { lats: 1, biceps: 0.5 }, cable_row: { upper_back: 1, lats: 0.5 }, machine_row: { upper_back: 1, lats: 0.5 },
+  rope_pushdown: { triceps: 1 }, oh_tri_ext_1arm: { triceps: 1 }, db_oh_tri_ext: { triceps: 1 }, rope_oh_ext: { triceps: 1 }, skull_crusher: { triceps: 1 },
+  inc_hammer_curl: { biceps: 1, forearms: 0.5 }, standing_hammer: { biceps: 1, forearms: 0.5 }, seated_hammer: { biceps: 1, forearms: 0.5 },
+  inc_db_curl: { biceps: 1 }, machine_curl: { biceps: 1 }, cable_rope_curl: { biceps: 1, forearms: 0.5 }, bb_curl: { biceps: 1 },
+  bulgarian: { quads: 1, hams: 0.5 }, box_squat: { quads: 1, hams: 0.5 }, squat: { quads: 1, hams: 0.5 }, front_squat: { quads: 1 },
+  walking_lunge: { quads: 1, hams: 0.5 }, pistol: { quads: 1 },
+  db_rdl: { hams: 1 }, sl_rdl: { hams: 1 }, hip_thrust: { hams: 1 }, sumo_dl: { hams: 1, quads: 0.5, upper_back: 0.5 },
+  hanging_knee_raise: { abs: 1 }, side_knee_up: { abs: 1 }, cable_crunch: { abs: 1 }, pallof: { abs: 1 }, side_plank: { abs: 1 },
+  shrug: { neck: 1 }, cable_shrug: { neck: 1 }, lean_shrug: { neck: 1 }, neck_ext: { neck: 1 }, neck_curl: { neck: 1 },
+  farmer_walk: { forearms: 1, neck: 0.5 },
+};
+
 export const LEVEL_NAMES = ['Gut', 'Stark', 'Göttlich'];
 export const LEVEL_XP = [300, 600, 1000];
 

@@ -1,11 +1,12 @@
-import { EX, EQ, RANKS, STANDARDS, LEVEL_NAMES, KEY_LIFTS, MAIN_SESSIONS, MAIN_WEEKS, SPEC, LABOURS, LABOUR_XP, MEASURES } from './data.js';
+import { EX, EQ, RANKS, STANDARDS, LEVEL_NAMES, KEY_LIFTS, MAIN_SESSIONS, MAIN_WEEKS, SPEC, LABOURS, LABOUR_XP, MEASURES, MUSCLES } from './data.js';
 import { IMAGES } from './images.js';
+import { POSES, listPhotos, putPhoto, deletePhoto, shrink, blobToDataUrl, dataUrlToBlob } from './photos.js';
 import {
   DEFAULT_SETTINGS, DAY_NAMES, DAY_LONG, iso, parseIso, addDays, mondayOf, weekKey, fmtDate, fmtShort,
   blockAt, workoutFor, extraWorkout, estMinutes, deriveWeights, warmupSets, fmtKg, weightLabel, newSession,
   bwAt, computeXP, rankFor, isTrainingDay, upcomingDates, weekStatus, projectEnd, blockTimeline, seriesFor, totals,
   standardValue, standardLevel, START_W, isMain, mainCount, plusMode, stagnating, dayPlan, figure, targets,
-  nutrition, adjustNutrition, updateLabours, noWeight, unitOf, FIG_COMPONENTS,
+  nutrition, adjustNutrition, updateLabours, noWeight, unitOf, FIG_COMPONENTS, weekVolume,
 } from './engine.js';
 
 const KEY = 'agon.v1';
@@ -57,8 +58,22 @@ let statEx = null;
 let tickTimer = null;
 let wakeLock = null;
 
+// Fotos: aus IndexedDB, mit Objekt-URLs für die Anzeige
+let photos = [];
+const photoUrls = new Map();
+async function loadPhotos() {
+  photos = (await listPhotos()).sort((a, b) => a.d.localeCompare(b.d));
+  for (const [id, u] of photoUrls) if (!photos.some(p => p.id === id)) { URL.revokeObjectURL(u); photoUrls.delete(id); }
+  for (const p of photos) if (!photoUrls.has(p.id)) photoUrls.set(p.id, URL.createObjectURL(p.blob));
+}
+const photoDates = () => [...new Set(photos.map(p => p.d))].sort();
+const photoOf = (d, pose) => photos.find(p => p.d === d && p.pose === pose);
+const daysSince = d => Math.floor((parseIso(iso(new Date())) - parseIso(d)) / 86400000);
+
 // ---------- Hilfen ----------
 const typeLabel = { rpt: 'Reverse Pyramid', kino: 'Kino Reps', rp: 'Rest-Pause', straight: 'Gerade Sätze' };
+// Schwere eines Satzes als Reserve-Wiederholungen
+const RIR_LABEL = { 3: 'Leicht', 2: 'Gut', 1: 'Hart', 0: 'Versagen' };
 const mmss = sec => { sec = Math.max(0, Math.round(sec)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
 const range = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
 const unitTxt = exId => (unitOf(exId) === 's' ? 's' : 'Wdh.');
@@ -205,6 +220,13 @@ function renderToday(xpData, fig) {
   const specFirst = blk.b.spec && blk.k < 2;
   const first = !state.sessions.length;
   let h = rankLine(xpData) + figLine(fig);
+  const lastMeas = (state.meas || []).map(m => m.d).sort().pop();
+  const lastPhoto = photoDates().pop();
+  const due = [];
+  if (!state.profile || !state.profile.wrist || !state.profile.height) due.push('Grösse und Handgelenk');
+  if (!lastMeas || daysSince(lastMeas) >= 14) due.push('Messung');
+  if (!lastPhoto || daysSince(lastPhoto) >= 28) due.push('Fotos');
+  if (due.length) h += `<button class="due" data-act="go" data-view="body"><span>${due.join(', ').replace(/, ([^,]*)$/, ' und $1')} fällig</span><span class="muted">Körper ›</span></button>`;
   h += `<div class="stack"><span class="muted small">${DAY_LONG[today.getDay()]}, ${fmtDate(today)}</span>`;
 
   const mainBlock = (label, heading = true) => {
@@ -269,7 +291,8 @@ function setRow(pe, s, j, a) {
   const k = s.kind === 'act' ? 'AKTIV' : s.kind === 'mini' ? `MINI ${j}` : `SATZ ${j + 1}`;
   const target = `${range(s.lo, s.hi)} <small>${unitTxt(pe.ex)}</small>`;
   const nw = noWeight(pe.ex);
-  const wt = nw ? '' : s.w == null ? ' · <small>Gewicht wählen</small>' : ` · ${weightLabel(pe.ex, s.w)}${s.up && !s.done ? ' <span class="up">↑</span>' : ''}`;
+  const mark = s.done ? '' : s.up ? ' <span class="up">↑</span>' : s.down ? ' <span class="down">↓</span>' : '';
+  const wt = nw ? '' : s.w == null ? ' · <small>Gewicht wählen</small>' : ` · ${weightLabel(pe.ex, s.w)}${mark}`;
   const doneTxt = `${s.r}${unitOf(pe.ex) === 's' ? ' s' : ''}${nw ? '' : ` × ${weightLabel(pe.ex, s.w)}`}`;
   const st = s.done ? doneTxt : isCur ? 'jetzt' : '';
   return `<button class="set ${s.kind === 'mini' ? 'mini' : ''} ${s.done ? 'done' : ''} ${isCur ? 'cur' : ''}" data-act="setTap" data-j="${j}"><span class="k">${k}</span><span class="v">${s.done ? target : `${target}${wt}`}</span><span class="st">${st}</span></button>`;
@@ -294,8 +317,13 @@ function renderSession() {
     h += `<div class="warm"><span class="lbl">Aufwärmen</span>${ws.map((x, j) => `<button class="${on.includes(j) ? 'on' : ''}" data-act="warm" data-j="${j}">${esc(x.label)} × ${x.r}</button>`).join('')}</div>`;
   }
   h += `<div class="sets">${pe.sets.map((s, j) => setRow(pe, s, j, a)).join('')}</div>`;
-  const prev = pe.sets.filter(s => s.prev).map(s => `${weightLabel(pe.ex, s.prev.w).replace(' kg', '')} × ${s.prev.r}`);
-  if (prev.length) h += `<p class="hint" style="margin:0">Letztes Mal: <b>${prev.join(' · ')}</b>${pe.sets.some(s => s.up) ? ' · <span class="up">↑</span> = mehr Gewicht, weil du das Ziel erreicht hast.' : ''}</p>`;
+  const prev = pe.sets.filter(s => s.prev).map(s => `${weightLabel(pe.ex, s.prev.w).replace(' kg', '')} × ${s.prev.r}${s.prev.rir != null ? ` (${RIR_LABEL[s.prev.rir].toLowerCase()})` : ''}`);
+  if (prev.length) {
+    const why = [];
+    if (pe.sets.some(s => s.up)) why.push('<span class="up">↑</span> = mehr Gewicht, weil du das Ziel erreicht hast');
+    if (pe.sets.some(s => s.down)) why.push('<span class="down">↓</span> = etwas leichter, weil die Wiederholungen unter dem Ziel lagen');
+    h += `<p class="hint" style="margin:0">Letztes Mal: <b>${prev.join(' · ')}</b>${why.length ? ` · ${why.join(' · ')}.` : ''}</p>`;
+  }
   else if (!noWeight(pe.ex) && pe.sets[0].w == null) h += `<p class="hint" style="margin:0">Erstes Mal bei dieser Übung: Wähle ein Gewicht, mit dem du knapp das obere Ende schaffst. ${pe.type === 'rpt' ? 'Die weiteren Sätze rechnet Agon aus.' : pe.type === 'kino' ? 'Beginne leicht und steigere jeden Satz.' : ''}</p>`;
   if (pe.plus) h += `<p class="hint" style="margin:0">Plus-Übung: 1–2 Wiederholungen Reserve lassen, nicht bis zum Versagen.</p>`;
   if (EX[pe.ex].eq === 'bw' && unitOf(pe.ex) !== 's') h += `<p class="hint" style="margin:0">Schaffst du alle Sätze am oberen Ende, nimm beim nächsten Mal etwas Gewicht dazu.</p>`;
@@ -367,6 +395,8 @@ function renderSheet() {
     body = `<div class="stack"><span class="eyebrow">${esc(EX[pe.ex].name)}</span><h2 class="display">Wie lief der Satz?</h2><span class="muted small">Ziel: ${range(s.lo, s.hi)} ${timed ? 'Sekunden' : 'Wiederholungen'}</span></div>
       <div class="stack"><span class="small muted">${timed ? 'Sekunden' : 'Wiederholungen'}</span>${stepper('inR', sheet.r, 'Wiederholungen', 'r')}</div>
       ${noWeight(pe.ex) ? '' : `<div class="stack"><span class="small muted">${isBw ? 'Zusatzgewicht in kg (0 = Körpergewicht)' : `Gewicht in kg${eqk === 'db' ? ' pro Hand' : ''}`}</span>${stepper('inW', sheet.w == null ? '' : fmtKg(sheet.w), 'Gewicht', 'w', 'kg')}<span class="small muted" style="text-align:center">Schritt ${fmtKg(EQ[eqk].inc)} kg</span></div>`}
+      <div class="stack"><span class="small muted">Wie schwer war es? (freiwillig)</span><div class="rir">${[3, 2, 1, 0].map(v => `<button class="${sheet.rir === v ? 'on' : ''}" data-act="rir" data-v="${v}">${RIR_LABEL[v]}</button>`).join('')}</div>
+      <span class="small muted">Leicht: 3 oder mehr Wiederholungen wären noch gegangen. Gut: 2. Hart: 1. Versagen: keine mehr.</span></div>
       <button class="btn" data-act="logSave">Speichern</button>`;
   } else if (sheet.type === 'weight') {
     const pe = state.active.ex[sheet.e];
@@ -405,6 +435,38 @@ function renderSheet() {
       ${base.length ? `<div class="measgrid"><span class="eyebrow">Grundlage, einmalig</span>${base.map(([k, l, hnt]) => `<label class="mfield" for="m_${k}"><span><b>${l}</b><small>${hnt}</small></span><input id="m_${k}" inputmode="decimal" placeholder="cm"></label>`).join('')}</div>` : ''}
       <div class="measgrid">${MEASURES.map((m, j) => `<label class="mfield" for="m_${m.k}"><span><b><span class="mno">${j + 1}</span>${m.label}</b><small>${m.hint}</small></span><input id="m_${m.k}" inputmode="decimal" placeholder="${snap[m.k] ? fmtKg(snap[m.k]) : 'cm'}"></label>`).join('')}</div>
       <button class="btn" data-act="measSave">Speichern</button><button class="btn ghost" data-act="closeSheet">Abbrechen</button>`;
+  } else if (sheet.type === 'photos') {
+    const d = iso(new Date());
+    body = `<div class="stack"><span class="eyebrow">Fortschrittsfotos · ${fmtShort(new Date())}</span><h2 class="display">Fotos aufnehmen</h2></div>
+      <ul class="tips"><li>Gleicher Ort, gleiches Licht, morgens vor dem Essen.</li><li>Handy auf Brusthöhe, etwa 2 m Abstand, Selbstauslöser oder Spiegel.</li><li>Entspannt stehen, Arme locker, nicht anspannen. So sieht man die echte Veränderung.</li></ul>
+      <div class="pshoot">${POSES.map(([k, l]) => {
+        const pp = photoOf(d, k);
+        return `<div class="pslot">${pp ? `<img src="${photoUrls.get(pp.id)}" alt="${l}">` : `<div class="pempty">${l}</div>`}
+          <label class="btn ${pp ? 'ghost' : ''} sm" for="ph_${k}">${pp ? 'Ersetzen' : l}</label>
+          <input type="file" id="ph_${k}" accept="image/*" data-change="photo" data-pose="${k}" hidden></div>`;
+      }).join('')}</div>
+      <button class="btn ghost" data-act="closeSheet">Fertig</button>`;
+  } else if (sheet.type === 'photo') {
+    const pp = photos.find(x => x.id === sheet.id);
+    if (!pp) { sheet = null; return ''; }
+    const pose = (POSES.find(x => x[0] === pp.pose) || [])[1] || '';
+    body = `<div class="stack"><span class="eyebrow">${pose} · ${fmtShort(parseIso(pp.d))}</span></div>
+      <img class="pbig" src="${photoUrls.get(pp.id)}" alt="${pose}, ${fmtShort(parseIso(pp.d))}">
+      ${sheet.confirm ? '<button class="btn danger" data-act="photoDel">Foto wirklich löschen</button>' : '<button class="btn ghost" data-act="photoDelAsk">Foto löschen</button>'}
+      <button class="btn ghost" data-act="closeSheet">Schliessen</button>`;
+  } else if (sheet.type === 'compare') {
+    const pd = photoDates();
+    const from = sheet.from || pd[0], to = sheet.to || pd[pd.length - 1];
+    const opt = sel => pd.map(d => `<option value="${d}" ${d === sel ? 'selected' : ''}>${fmtShort(parseIso(d))}</option>`).join('');
+    body = `<div class="stack"><span class="eyebrow">Vergleich</span><h2 class="display">Vorher und nachher</h2></div>
+      <div class="row between"><select class="sel" id="cmpFrom" data-change="cmpFrom">${opt(from)}</select><span class="muted">→</span><select class="sel" id="cmpTo" data-change="cmpTo">${opt(to)}</select></div>
+      ${POSES.map(([k, l]) => {
+        const a = photoOf(from, k), b = photoOf(to, k);
+        if (!a && !b) return '';
+        const im = (x, d) => (x ? `<img src="${photoUrls.get(x.id)}" alt="${l}, ${fmtShort(parseIso(d))}">` : '<div class="pempty">kein Foto</div>');
+        return `<div class="stack"><span class="small muted">${l}</span><div class="pcmp">${im(a, from)}${im(b, to)}</div></div>`;
+      }).join('')}
+      <button class="btn ghost" data-act="closeSheet">Schliessen</button>`;
   } else if (sheet.type === 'reset') {
     body = `<div class="stack"><h2 class="display">Alle Daten löschen?</h2><span class="muted small">Alle Trainings, Messungen, Punkte und Gewichte werden gelöscht. Sichere vorher eine Kopie.</span></div>
       <button class="btn danger" data-act="resetDo">Endgültig löschen</button><button class="btn ghost" data-act="closeSheet">Abbrechen</button>`;
@@ -462,6 +524,22 @@ function renderBody(xpData, fig) {
     return `<div class="comp"><div class="row between"><b>${l}</b><span class="num small">${cur}${tg ? ` <span class="muted">→ ${fmt(tg)}</span>` : ''}</span></div><span class="figbar"><i style="width:${p ? Math.round(p.score * 100) : 0}%"></i></span></div>`;
   }).join('')}</div>
     ${fig.bf != null ? `<span class="small">Körperfett nach Navy-Formel: <b>${fig.bf.toFixed(1)} %</b> (Ziel 10–12 %)</span>` : '<span class="small muted">Mit Grösse und Nacken schätzt Agon auch dein Körperfett.</span>'}</div>`;
+  // Fortschrittsfotos
+  const pd = photoDates();
+  const lastD = pd[pd.length - 1];
+  let ph = `<div class="card"><div class="row between"><span class="eyebrow">Fortschrittsfotos</span><span class="small muted">${lastD ? `zuletzt ${fmtShort(parseIso(lastD))}` : 'noch keine'}</span></div>`;
+  if (lastD) {
+    ph += `<div class="pgrid">${POSES.map(([k, l]) => {
+      const pp = photoOf(lastD, k);
+      return pp ? `<button class="pthumb" data-act="photoView" data-id="${pp.id}"><img src="${photoUrls.get(pp.id)}" alt="${l}, ${fmtShort(parseIso(lastD))}"><span>${l}</span></button>` : `<div class="pthumb empty"><span>${l}</span></div>`;
+    }).join('')}</div>`;
+    if (pd.length > 1) ph += `<button class="btn ghost" data-act="compareOpen">Vorher und nachher vergleichen</button>`;
+  }
+  const phDue = !lastD || daysSince(lastD) >= 28;
+  ph += `<span class="small muted">${phDue ? 'Alle 4 Wochen vorne, seitlich und hinten.' : `Nächste Fotos ab ${fmtShort(addDays(parseIso(lastD), 28))}.`} Die Fotos bleiben nur auf diesem iPhone und kommen nur mit der Sicherung mit.</span>
+    <button class="btn ${phDue ? '' : 'ghost'}" data-act="photosOpen">${lastD === iso(new Date()) ? 'Fotos von heute ergänzen' : 'Fotos aufnehmen'}</button></div>`;
+  h += ph;
+
   const p = state.profile || {};
   h += `<div class="card"><span class="eyebrow">Grundlage</span>
     <div class="setting"><div class="t">Körpergrösse<span>für Taillenziel und Körperfett</span></div><div class="bwrow" style="width:130px"><input id="pHeight" inputmode="decimal" value="${p.height || ''}" placeholder="cm"></div></div>
@@ -540,6 +618,20 @@ function renderStats(xpData) {
     <span class="small">${esc(cur.block)} · ${esc(cur.phase)}, Woche ${cur.weekInBlock} von ${cur.blockWeeks}</span>
     ${end ? `<span class="small muted">Voraussichtlich fertig am ${fmtShort(end)}, wenn du alle Trainings machst.</span>` : '<span class="small">Programm abgeschlossen.</span>'}</div>`;
   h += `<div class="tiles"><div><b>${tot.sessions}</b><span>Haupttrainings</span></div><div><b>${tot.extra}</b><span>Feinschliff, Mobilität</span></div><div><b>${Math.round(tot.minutes / 60 * 10) / 10}</b><span>Stunden</span></div><div><b>${(tot.vol / 1000).toLocaleString('de-CH', { maximumFractionDigits: 1 })}</b><span>Tonnen bewegt</span></div></div>`;
+
+  // Wochenvolumen pro Muskel
+  const monIso = iso(mondayOf(new Date()));
+  const vol = weekVolume(state, monIso);
+  const prevVol = weekVolume(state, iso(addDays(mondayOf(new Date()), -7)), false);
+  const fmtN = v => (Math.round(v * 2) / 2).toLocaleString('de-CH');
+  h += `<div class="card"><div class="row between"><span class="eyebrow">Wochenvolumen</span><span class="small muted">harte Sätze, diese Woche</span></div><div class="vols">${MUSCLES.map(m => {
+    const v = vol[m.k] || 0;
+    const max = Math.max(m.hi * 1.3, v);
+    const state_ = v >= m.lo ? (v > m.hi * 1.25 ? 'hi' : 'ok') : 'lo';
+    return `<div class="vol ${state_}"><div class="row between"><span>${m.label}</span><span class="num small">${fmtN(v)} <span class="muted">/ ${m.lo}–${m.hi}</span></span></div>
+      <span class="vbar"><em style="left:${(m.lo / max) * 100}%;width:${((m.hi - m.lo) / max) * 100}%"></em><i style="width:${Math.min(100, (v / max) * 100)}%"></i></span>
+      <span class="small muted">letzte Woche ${fmtN(prevVol[m.k] || 0)}</span></div>`;
+  }).join('')}</div><span class="small muted">Der helle Bereich ist das Ziel. Direkte Sätze zählen ganz, mittrainierte Muskeln halb. Die Woche füllt sich bis Samstag.</span></div>`;
 
   const withData = [...new Set(state.sessions.flatMap(s => s.ex.filter(e => e.sets.some(x => x.done) && !noWeight(e.ex) && unitOf(e.ex) !== 's').map(e => e.ex)))];
   const keys = KEY_LIFTS.filter(k => withData.includes(k));
@@ -622,7 +714,7 @@ function renderSettings() {
   <div class="card"><span class="eyebrow">Daten</span>
     <span class="small muted">Deine Daten liegen nur auf diesem iPhone. Sichere regelmässig eine Kopie in iCloud Drive.</span>
     <button class="btn ghost" data-act="export">Sicherung speichern</button>
-    <label class="btn ghost" for="importIn">Sicherung laden</label><input type="file" id="importIn" accept="application/json,.json" data-change="import" hidden>
+    <label class="btn ghost" for="importIn">Sicherung oder Startwerte laden</label><input type="file" id="importIn" accept="application/json,.json" data-change="import" hidden>
     <button class="link" data-act="resetAsk" style="align-self:flex-start;color:var(--danger)">Alle Daten löschen</button>
   </div>
   <div class="card soft small muted"><span>Trainingsplan nach dem Greek God Program 2.0 von Greg O'Gallagher (Kinobody), erweitert mit Agon Plus. Agon ist eine private App ohne Verbindung zu Kinobody.</span><span class="num">Version ${window.AGON_VERSION || ''}</span></div>`;
@@ -737,7 +829,7 @@ function openLog(e, j) {
   if (w == null) w = START_W[EX[pe.ex].eq] ?? 0;
   let r = s.done ? s.r : s.hi;
   if (!s.done && unitOf(pe.ex) === 's' && a.setStart) r = Math.max(1, Math.round((Date.now() - a.setStart) / 1000));
-  sheet = { type: 'log', e, j, r, w };
+  sheet = { type: 'log', e, j, r, w, rir: s.done ? s.rir ?? null : null };
   render();
 }
 
@@ -750,14 +842,16 @@ function saveLog() {
   const w = wIn ? parseFloat(String(wIn.value).replace(',', '.')) : 0;
   if (!(r >= 0)) { toast('Bitte einen Wert eingeben'); return; }
   if (!(w >= 0)) { toast('Bitte Gewicht eingeben'); return; }
+  const rir = sheet.rir;
   sheet = null;
-  if (s.done) { s.r = r; s.w = w; if (pe.type !== 'rp') deriveWeights(pe); save(); render(); return; }
-  commitSet(pe, s, r, w);
+  if (pe.plus && rir === 0) setTimeout(() => toast('Plus-Sätze besser mit 1–2 Wiederholungen Reserve'), 400);
+  if (s.done) { s.r = r; s.w = w; s.rir = rir; if (pe.type !== 'rp') deriveWeights(pe); save(); render(); return; }
+  commitSet(pe, s, r, w, rir);
 }
 
-function commitSet(pe, s, r, w) {
+function commitSet(pe, s, r, w, rir = null) {
   const a = state.active;
-  s.r = r; s.w = w; s.done = true; s.auto = false;
+  s.r = r; s.w = w; s.rir = rir; s.done = true; s.auto = false;
   if (a.setStart) s.t = Math.round((Date.now() - a.setStart) / 1000);
   if (pe.type === 'rp' && s.kind === 'act') pe.sets.forEach(x => { if (!x.done) x.w = w; });
   if (pe.type !== 'rp') deriveWeights(pe);
@@ -793,7 +887,7 @@ function finishSession() {
   if (!done) { state.active = null; sheet = null; save(); render(); return; }
   const rec = {
     id: a.id, kind: a.kind || 'main', title: a.title, focus: a.focus, date: a.date, start: a.start, end: Date.now(), bw: bwAt(state, a.date),
-    ex: a.ex.map(e => ({ ex: e.ex, type: e.type, plus: !!e.plus, skipped: e.skipped || !e.sets.some(x => x.done), sets: e.sets.map(x => ({ kind: x.kind, lo: x.lo, hi: x.hi, w: x.w, r: x.r, done: !!x.done, up: !!x.up, t: x.t })) })),
+    ex: a.ex.map(e => ({ ex: e.ex, type: e.type, plus: !!e.plus, skipped: e.skipped || !e.sets.some(x => x.done), sets: e.sets.map(x => ({ kind: x.kind, lo: x.lo, hi: x.hi, w: x.w, r: x.r, rir: x.rir ?? null, done: !!x.done, up: !!x.up, t: x.t })) })),
   };
   if (rec.kind === 'main') Object.assign(rec, { i: a.i, key: a.key, blockId: a.blockId, block: a.block, phase: a.phaseName, week: a.week, lastOfBlock: a.lastOfBlock, deload: !!a.deload });
   state.sessions.push(rec);
@@ -829,8 +923,11 @@ function saveMeasurement() {
   toast(diff ? `Messung gespeichert · ${diff > 0 ? '+' : ''}${diff} XP` : 'Messung gespeichert');
 }
 
-function exportData() {
-  const data = JSON.stringify({ app: 'agon', exported: new Date().toISOString(), state: { ...state, active: null, summary: null } }, null, 1);
+async function exportData() {
+  toast('Sicherung wird erstellt …');
+  const pics = [];
+  for (const p of photos) { try { pics.push({ id: p.id, d: p.d, pose: p.pose, data: await blobToDataUrl(p.blob) }); } catch { /* Foto überspringen */ } }
+  const data = JSON.stringify({ app: 'agon', exported: new Date().toISOString(), state: { ...state, active: null, summary: null }, photos: pics });
   const name = `agon-sicherung-${iso(new Date())}.json`;
   const blob = new Blob([data], { type: 'application/json' });
   try {
@@ -843,14 +940,30 @@ function exportData() {
 }
 function importData(file) {
   const fr = new FileReader();
-  fr.onload = () => {
-    try {
-      const obj = JSON.parse(fr.result);
-      const s = obj.state || obj;
-      if (!Array.isArray(s.sessions)) throw new Error('kein Agon');
-      state = migrate({ ...s, active: null, summary: null });
-      save(); render(); toast(`${mainCount(state)} Trainings geladen`);
-    } catch { toast('Die Datei ist keine Agon-Sicherung'); }
+  fr.onload = async () => {
+    let obj;
+    try { obj = JSON.parse(fr.result); } catch { toast('Die Datei ist keine Agon-Datei'); return; }
+    if (!obj || obj.app !== 'agon') { toast('Die Datei ist keine Agon-Datei'); return; }
+    if (obj.kind === 'profil') {
+      // Startwerte ergänzen, nichts überschreiben ausser gleiche Tage
+      const pr = obj.profile || {};
+      state.profile = { ...(state.profile || {}), ...(pr.height ? { height: pr.height } : {}), ...(pr.wrist ? { wrist: pr.wrist } : {}) };
+      for (const m of obj.meas || []) {
+        const same = (state.meas || []).find(x => x.d === m.d);
+        if (same) Object.assign(same, m); else state.meas = (state.meas || []).concat([{ ...m }]);
+      }
+      for (const b of obj.bw || []) state.bw = state.bw.filter(x => x.d !== b.d).concat([{ d: b.d, kg: b.kg }]);
+      state.bw.sort((x, y) => x.d.localeCompare(y.d));
+      afterChange(); render(); toast('Startwerte übernommen');
+      return;
+    }
+    const s = obj.state || obj;
+    if (!Array.isArray(s.sessions)) { toast('Die Datei ist keine Agon-Sicherung'); return; }
+    state = migrate({ ...s, active: null, summary: null });
+    save();
+    for (const p of obj.photos || []) { try { await putPhoto({ id: p.id, d: p.d, pose: p.pose, blob: await dataUrlToBlob(p.data) }); } catch { /* Foto überspringen */ } }
+    await loadPhotos();
+    render(); toast(`${mainCount(state)} Trainings geladen`);
   };
   fr.readAsText(file);
 }
@@ -947,10 +1060,37 @@ document.addEventListener('click', ev => {
     }
     case 'export': exportData(); break;
     case 'resetAsk': sheet = { type: 'reset' }; render(); break;
-    case 'resetDo': state = blank(); sheet = null; save(); view = 'today'; render(); toast('Alle Daten gelöscht'); break;
+    case 'resetDo': {
+      state = blank(); sheet = null; save(); view = 'today';
+      Promise.all(photos.map(p => deletePhoto(p.id))).then(loadPhotos).then(render);
+      render(); toast('Alle Daten gelöscht');
+      break;
+    }
+    case 'rir': {
+      const v = +el.dataset.v;
+      sheet.rir = sheet.rir === v ? null : v;
+      el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === sheet.rir));
+      break;
+    }
+    case 'photosOpen': sheet = { type: 'photos' }; render(); break;
+    case 'photoView': sheet = { type: 'photo', id: el.dataset.id }; render(); break;
+    case 'photoDelAsk': sheet.confirm = true; render(); break;
+    case 'photoDel': deletePhoto(sheet.id).then(loadPhotos).then(() => { sheet = null; render(); toast('Foto gelöscht'); }); break;
+    case 'compareOpen': sheet = { type: 'compare' }; render(); break;
     default: break;
   }
 });
+
+async function savePhoto(pose, file) {
+  try {
+    toast('Foto wird gespeichert …');
+    const blob = await shrink(file);
+    const d = iso(new Date());
+    await putPhoto({ id: `${d}-${pose}`, d, pose, blob });
+    await loadPhotos();
+    render();
+  } catch { toast('Das Foto konnte nicht gespeichert werden'); }
+}
 
 document.addEventListener('change', ev => {
   const el = ev.target.closest('[data-change]');
@@ -960,6 +1100,8 @@ document.addEventListener('change', ev => {
   else if (['neckSat', 'deadliftAlt', 'plus', 'fein'].includes(k)) { state.settings[k] = el.checked; save(); render(); }
   else if (k === 'statSel') { if (el.value) { statEx = el.value; render(); } }
   else if (k === 'import') { if (el.files[0]) importData(el.files[0]); el.value = ''; }
+  else if (k === 'photo') { if (el.files[0]) savePhoto(el.dataset.pose, el.files[0]); el.value = ''; }
+  else if ((k === 'cmpFrom' || k === 'cmpTo') && sheet && sheet.type === 'compare') { sheet[k === 'cmpFrom' ? 'from' : 'to'] = el.value; render(); }
 });
 
 // Tageswechsel
@@ -968,6 +1110,7 @@ setInterval(() => { if (!state.active && view === 'today' && !sheet) render(); }
 if (state.settings.days.length !== 3) state.settings.days = DEFAULT_SETTINGS.days.slice();
 afterChange();
 render();
+loadPhotos().then(() => { if (photos.length) render(); });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
