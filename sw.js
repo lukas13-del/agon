@@ -1,7 +1,7 @@
 // Offline-Cache. VERSION bei jedem Update erhöhen.
-const VERSION = 'agon-2.4.0';
+const VERSION = 'agon-2.5.0';
 const CORE = [
-  './', 'index.html', 'manifest.webmanifest', 'css/app.css?v=2.4.0', 'js/app.js?v=2.4.0',
+  './', 'index.html', 'manifest.webmanifest', 'css/app.css?v=2.5.0', 'js/app.js?v=2.5.0',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/images.js', 'js/photos.js', 'js/figures.js',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png',
 ];

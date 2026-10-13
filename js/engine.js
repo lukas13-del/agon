@@ -1,10 +1,13 @@
 // Logik: Programmablauf, Gewichtsvorschläge, Punkte, Figur, Kalorien, Statistik
 import {
   EX, EQ, KINO_STEP, BLOCKS, LOOP, SPEC, NECK_SAT, PLUS, FEIN, MOB, MAIN_SESSIONS, RANKS, STANDARDS, LEVEL_XP,
-  KEY_LIFTS, LABOURS, LABOUR_XP, EX_MUSCLES,
+  KEY_LIFTS, LABOURS, LABOUR_XP, EX_MUSCLES, HOME_SUB,
 } from './data.js';
 
-export const DEFAULT_SETTINGS = { neckSat: true, deadliftAlt: true, specA: 'brust', specB: 'ruecken', days: [2, 4, 6], plus: true, fein: true };
+export const DEFAULT_SETTINGS = { neckSat: true, deadliftAlt: true, specA: 'brust', specB: 'ruecken', days: [2, 4, 6], plus: true, fein: true, home: false };
+
+// Zuhause: Maschinenübungen durch Kurzhantel- und Kabelzug-Übungen ersetzen
+const homeSub = (list, settings) => (settings.home ? list.map(t => (HOME_SUB[t.ex] ? { ...t, ex: HOME_SUB[t.ex] } : t)) : list);
 export const DAY_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 export const DAY_LONG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 export const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -81,6 +84,7 @@ export function workoutFor(i, settings, opts = {}) {
     plusN = pl.length;
     list = list.concat(pl);
   }
+  list = homeSub(list, settings);
   return {
     i, key, title, focus, list, neck, plusN,
     blockId: b.id, block: b.block, phase: b.phase, deload: !!b.deload,
@@ -95,6 +99,7 @@ export function extraWorkout(kind, state) {
   // Im 3er-Split hat Tag B schon Nackenübungen, in Entlastungswochen fallen sie weg
   const neck = kind === 'fein' && !!state && state.settings.neckSat && !blockAt(mainCount(state)).b.noNeckSat;
   if (neck) list = list.concat(NECK_SAT.map(x => ({ ...x, bonus: true })));
+  if (state) list = homeSub(list, state.settings);
   return { title: w.title, focus: neck ? `${w.focus}, Nacken` : w.focus, list, kind, neck };
 }
 

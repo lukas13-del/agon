@@ -120,6 +120,12 @@ export const EX = {
   rope_oh_ext: { name: 'Trizepsstrecken über Kopf am Seil', eq: 'cable', muscles: 'Trizeps',
     steps: ['Mit dem Rücken zum Kabelzug, Seil über dem Kopf.', 'Oberarme neben dem Kopf.', 'Seil nach vorne-oben strecken.', 'Langsam zurück in die Dehnung.'],
     tips: ['Ellbogen bleiben fixiert.', 'Pause 60 bis 90 Sekunden.'] },
+  db_fly: { name: 'Flys Kurzhantel', eq: 'db', muscles: 'Brust',
+    steps: ['Flach oder leicht schräg auf der Bank, Kurzhanteln über der Brust, Handflächen zueinander.', 'Ellbogen leicht gebeugt lassen.', 'Arme im weiten Bogen seitlich absenken, bis die Brust gedehnt ist.', 'Im gleichen Bogen zurück über die Brust.'],
+    tips: ['Ellbogenwinkel bleibt gleich, nicht drücken.', 'Nur so tief, wie die Schulter es angenehm zulässt.'] },
+  reverse_lunge: { name: 'Ausfallschritte rückwärts', eq: 'db', muscles: 'Oberschenkel, Gesäss',
+    steps: ['Aufrecht stehen, Kurzhanteln seitlich halten.', 'Grosser Schritt nach hinten, hinteres Knie fast zum Boden.', 'Über das vordere Bein zurück in den Stand drücken.', 'Bein wechseln. Wiederholungen pro Bein zählen.'],
+    tips: ['Oberkörper aufrecht.', 'Vorderes Knie bleibt über dem Fuss.'] },
   walking_lunge: { name: 'Ausfallschritte gehend', eq: 'bb', muscles: 'Oberschenkel, Gesäss',
     steps: ['Stange auf dem oberen Rücken.', 'Grosser Schritt nach vorne, hinteres Knie fast zum Boden.', 'Über das vordere Bein hochdrücken und den nächsten Schritt machen.', 'Wiederholungen pro Bein zählen.'],
     tips: ['Oberkörper aufrecht.', 'Vorderes Knie bleibt über dem Fuss.'] },
@@ -511,7 +517,7 @@ export const MUSCLES = [
 export const EX_MUSCLES = {
   inc_bb_press: { chest: 1, triceps: 0.5 }, inc_db_press: { chest: 1, triceps: 0.5 }, flat_bb_bench: { chest: 1, triceps: 0.5 },
   flat_db_press: { chest: 1, triceps: 0.5 }, machine_press: { chest: 1, triceps: 0.5 }, weighted_dip: { chest: 1, triceps: 0.5 },
-  close_grip_bench: { triceps: 1, chest: 0.5 }, cable_crossover: { chest: 1 }, cable_fly_low: { chest: 1 },
+  close_grip_bench: { triceps: 1, chest: 0.5 }, cable_crossover: { chest: 1 }, cable_fly_low: { chest: 1 }, db_fly: { chest: 1 }, reverse_lunge: { quads: 1, hams: 0.5 },
   standing_press: { side_delt: 0.5, triceps: 0.5 }, arnold: { side_delt: 0.5, triceps: 0.5 },
   lateral_raise: { side_delt: 1 }, cable_lateral: { side_delt: 1 }, db_upright_row: { side_delt: 1, neck: 0.5 },
   face_pull: { upper_back: 1 }, seated_rev_fly: { upper_back: 1 }, machine_rear_delt: { upper_back: 1 },
@@ -526,6 +532,16 @@ export const EX_MUSCLES = {
   hanging_knee_raise: { abs: 1 }, side_knee_up: { abs: 1 }, cable_crunch: { abs: 1 }, pallof: { abs: 1 }, side_plank: { abs: 1 },
   shrug: { neck: 1 }, cable_shrug: { neck: 1 }, lean_shrug: { neck: 1 }, neck_ext: { neck: 1 }, neck_curl: { neck: 1 },
   farmer_walk: { forearms: 1, neck: 0.5 },
+};
+
+// Training zuhause (Rack, Langhantel, Klimmzug, Dips, Kabelzug oben/unten, Bank, Kurzhanteln)
+export const HOME_SUB = {
+  cable_crossover: 'db_fly',
+  machine_press: 'flat_db_press',
+  machine_row: 'cable_row',
+  machine_curl: 'cable_rope_curl',
+  machine_rear_delt: 'seated_rev_fly',
+  walking_lunge: 'reverse_lunge',
 };
 
 export const LEVEL_NAMES = ['Gut', 'Stark', 'Göttlich'];

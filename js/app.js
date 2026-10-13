@@ -721,6 +721,7 @@ function renderSettings() {
     ${sw('plus', st.plus, 'Plus-Blöcke', 'Zusatzsätze für Schultern, obere Brust, Rücken, Arme und Bauch')}
     ${sw('fein', st.fein, 'Feinschliff am Montag', 'Kurzes viertes Training, sonst am Freitag')}
     ${sw('neckSat', st.neckSat, 'Nacken &amp; Trapez', 'Im Feinschliff am Montag. Ist der Feinschliff ausgeschaltet, am Samstag.')}
+    ${sw('home', st.home, 'Training zuhause', 'Maschinen werden durch Kurzhantel- und Kabelzug-Übungen ersetzt')}
     ${sw('deadliftAlt', st.deadliftAlt, 'Kreuzheben im Wechsel', 'Jedes zweite Workout B mit Sumo-Kreuzheben statt der normalen Beinübungen')}
     <div class="setting"><div class="t">Spezialisierung Tag A</div><select class="sel" id="specA2" data-change="specA">${a}</select></div>
     <div class="setting"><div class="t">Spezialisierung Tag B</div><select class="sel" id="specB2" data-change="specB">${b}</select></div>
@@ -1190,7 +1191,7 @@ document.addEventListener('change', ev => {
   if (!el) return;
   const k = el.dataset.change;
   if (k === 'specA' || k === 'specB') { state.settings[k] = el.value; save(); render(); }
-  else if (['neckSat', 'deadliftAlt', 'plus', 'fein'].includes(k)) { state.settings[k] = el.checked; save(); render(); }
+  else if (['neckSat', 'deadliftAlt', 'plus', 'fein', 'home'].includes(k)) { state.settings[k] = el.checked; save(); render(); }
   else if (k === 'statSel') { if (el.value) { statEx = el.value; render(); } }
   else if (k === 'import') { if (el.files[0]) importData(el.files[0]); el.value = ''; }
   else if (k === 'photo') { if (el.files[0]) savePhoto(el.dataset.pose, el.files[0]); el.value = ''; }
