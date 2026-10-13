@@ -1,5 +1,6 @@
-import { EX, EQ, RANKS, STANDARDS, LEVEL_NAMES, KEY_LIFTS, MAIN_SESSIONS, MAIN_WEEKS, SPEC, LABOURS, LABOUR_XP, MEASURES, MUSCLES } from './data.js';
+import { EX, EQ, RANKS, STANDARDS, LEVEL_NAMES, KEY_LIFTS, MAIN_SESSIONS, MAIN_WEEKS, SPEC, LABOURS, LABOUR_XP, MEASURES, MUSCLES, EX_MUSCLES } from './data.js';
 import { IMAGES } from './images.js';
+import { drawExercise } from './figures.js';
 import { POSES, listPhotos, putPhoto, deletePhoto, shrink, blobToDataUrl, dataUrlToBlob } from './photos.js';
 import {
   DEFAULT_SETTINGS, DAY_NAMES, DAY_LONG, iso, parseIso, addDays, mondayOf, weekKey, fmtDate, fmtShort,
@@ -142,7 +143,11 @@ const MEAS_SVG = (() => {
 
 function illu(exId, withInfo = true) {
   const def = EX[exId];
-  const img = IMAGES.has(exId) ? `<img src="img/ex/${exId}.webp" alt="${esc(def.name)}: Start- und Endposition" loading="lazy">` : `<div class="ph">${EQ_ICON[def.eq] || ''}<span class="small">${esc(EQ[def.eq].label)}</span></div>`;
+  // Reihenfolge: eigenes Foto/Bild, sonst gezeichnetes Piktogramm, sonst Gerätesymbol
+  const fig = IMAGES.has(exId) ? null : drawExercise(exId);
+  const img = IMAGES.has(exId) ? `<img src="img/ex/${exId}.webp" alt="${esc(def.name)}: Start- und Endposition" loading="lazy">`
+    : fig ? fig.replace('aria-label="Start- und Endposition"', `aria-label="${esc(def.name)}: Start- und Endposition"`)
+    : `<div class="ph">${EQ_ICON[def.eq] || ''}<span class="small">${esc(EQ[def.eq].label)}</span></div>`;
   return `<button class="illu" data-act="info" data-ex="${exId}" aria-label="Anleitung ${esc(def.name)}">${img}${withInfo ? '<span class="info">Anleitung</span>' : ''}</button>`;
 }
 
@@ -720,6 +725,10 @@ function renderSettings() {
     <div class="setting"><div class="t">Spezialisierung Tag A</div><select class="sel" id="specA2" data-change="specA">${a}</select></div>
     <div class="setting"><div class="t">Spezialisierung Tag B</div><select class="sel" id="specB2" data-change="specB">${b}</select></div>
   </div>
+  <div class="card"><span class="eyebrow">Übungen</span>
+    <span class="small muted">Alle ${Object.keys(EX).length} Übungen mit Bild und Anleitung.</span>
+    <button class="btn ghost" data-act="go" data-view="lib">Übungsbibliothek öffnen</button>
+  </div>
   <div class="card"><span class="eyebrow">Daten</span>
     <span class="small muted">Deine Daten liegen nur auf diesem iPhone. Sichere regelmässig eine Kopie in iCloud Drive.</span>
     <button class="btn ghost" data-act="pasteOpen">Werte als Text einfügen</button>
@@ -728,6 +737,28 @@ function renderSettings() {
     <button class="link" data-act="resetAsk" style="align-self:flex-start;color:var(--danger)">Alle Daten löschen</button>
   </div>
   <div class="card soft small muted"><span>Trainingsplan nach dem Greek God Program 2.0 von Greg O'Gallagher (Kinobody), erweitert mit Agon Plus. Agon ist eine private App ohne Verbindung zu Kinobody.</span><span class="num">Version ${window.AGON_VERSION || ''}</span></div>`;
+}
+
+// ---------- Übungsbibliothek ----------
+const LIB_GROUPS = [
+  ['Brust', ['chest']], ['Schultern', ['side_delt', 'upper_back']], ['Rücken', ['lats']], ['Arme', ['biceps', 'triceps', 'forearms']],
+  ['Beine', ['quads', 'hams']], ['Rumpf', ['abs']], ['Nacken und Trapez', ['neck']], ['Mobilität', [null]],
+];
+function primaryMuscle(id) {
+  const m = EX_MUSCLES[id];
+  if (!m) return null;
+  return Object.entries(m).sort((a, b) => b[1] - a[1])[0][0];
+}
+function renderLibrary() {
+  const ids = Object.keys(EX);
+  let h = `<button class="link" data-act="go" data-view="settings" style="align-self:flex-start">‹ Mehr</button>
+    <div class="stack"><span class="eyebrow">Übungsbibliothek</span><h1 class="display">Alle Übungen</h1><span class="muted small">${ids.length} Übungen. Tippe auf ein Bild für die Anleitung.</span></div>`;
+  for (const [label, keys] of LIB_GROUPS) {
+    const list = ids.filter(id => keys.includes(primaryMuscle(id)));
+    if (!list.length) continue;
+    h += `<div class="stack" style="gap:10px"><span class="eyebrow">${label} · ${list.length}</span>${list.map(id => `<div class="libitem">${illu(id, false)}<div class="row between" style="align-items:baseline"><b>${esc(EX[id].name)}</b><span class="small muted" style="text-align:right">${esc(EX[id].muscles)}</span></div></div>`).join('')}</div>`;
+  }
+  return h;
 }
 
 // ---------- Render ----------
@@ -742,10 +773,11 @@ function render() {
   } else if (view === 'body') main = renderBody(xpData, fig);
   else if (view === 'stats') main = renderStats(xpData);
   else if (view === 'ranks') main = renderRanks(xpData, fig);
+  else if (view === 'lib') main = renderLibrary();
   else main = renderSettings();
   const tabs = [['today', 'Heute'], ['body', 'Körper'], ['stats', 'Statistik'], ['ranks', 'Ränge'], ['settings', 'Mehr']];
   const inSession = state.active && view === 'today' && !state.summary;
-  const nav = inSession ? '' : `<nav class="tabs">${tabs.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" data-act="go" data-view="${k}">${ICONS[k]}<span>${l}</span></button>`).join('')}</nav>`;
+  const nav = inSession ? '' : `<nav class="tabs">${tabs.map(([k, l]) => `<button class="${view === k || (view === 'lib' && k === 'settings') ? 'on' : ''}" data-act="go" data-view="${k}">${ICONS[k]}<span>${l}</span></button>`).join('')}</nav>`;
   const scroll = window.scrollY;
   $('#app').innerHTML = `<main class="${inSession ? 'session' : ''}">${main}</main>${view === 'today' ? renderLayer() : ''}${renderSheet()}${nav}`;
   window.scrollTo(0, scroll);
