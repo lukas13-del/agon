@@ -68,7 +68,8 @@ export function workoutFor(i, settings, opts = {}) {
   }
   list = list.map(x => ({ ...x }));
   if (b.deload) title = `${title} · Entlastung`;
-  const neck = settings.neckSat && !b.noNeckSat && i % 3 === 2;
+  // Nacken & Trapez gehören in den Feinschliff (Mo, sonst Fr). Nur ohne Feinschliff ans dritte Training der Woche.
+  const neck = settings.neckSat && !settings.fein && !b.noNeckSat && i % 3 === 2;
   if (neck) list = list.concat(NECK_SAT.map(x => ({ ...x, bonus: true })));
   let plusN = 0;
   if (settings.plus && b.plus && PLUS[b.plus] && PLUS[b.plus][key]) {
@@ -88,17 +89,23 @@ export function workoutFor(i, settings, opts = {}) {
   };
 }
 
-export function extraWorkout(kind) {
+export function extraWorkout(kind, state) {
   const w = kind === 'fein' ? FEIN : MOB;
-  return { title: w.title, focus: w.focus, list: w.list.map(x => ({ ...x })), kind };
+  let list = w.list.map(x => ({ ...x }));
+  // Im 3er-Split hat Tag B schon Nackenübungen, in Entlastungswochen fallen sie weg
+  const neck = kind === 'fein' && !!state && state.settings.neckSat && !blockAt(mainCount(state)).b.noNeckSat;
+  if (neck) list = list.concat(NECK_SAT.map(x => ({ ...x, bonus: true })));
+  return { title: w.title, focus: neck ? `${w.focus}, Nacken` : w.focus, list, kind, neck };
 }
 
 export function estMinutes(w) {
   let sec = 0;
   for (const t of w.list) {
-    const n = t.type === 'rp' ? 1 : t.sets.length;
+    let n = t.type === 'rp' ? 1 : t.sets.length;
+    if (w.deload && t.type !== 'rp') n = Math.max(1, Math.ceil(n / 2));
     const work = EX[t.ex].unit === 's' ? t.sets[0][1] : 40;
-    sec += n * (work + (t.rest ?? 90)) + (t.type === 'rp' ? 3 * 30 : 0) + (t.warmup ? 180 : 0) + (w.kind === 'mob' ? 10 : 60);
+    const minis = t.type === 'rp' ? (w.deload ? 1 : t.minis || 3) * 30 : 0;
+    sec += n * (work + (t.rest ?? 90)) + minis + (t.warmup && !w.deload ? 180 : 0) + (w.kind === 'mob' ? 10 : 60);
   }
   return Math.max(5, Math.round(sec / 300) * 5);
 }
@@ -216,7 +223,7 @@ export function newSession(state, kind = 'main') {
   const id = `s${Date.now()}`;
   const base = { id, kind, date: iso(new Date()), start: Date.now(), end: null, cur: { e: 0, s: 0 }, phase: 'ready', setStart: null, restEnd: null, restTotal: null };
   if (kind !== 'main') {
-    const w = extraWorkout(kind);
+    const w = extraWorkout(kind, state);
     return { ...base, title: w.title, focus: w.focus, ex: w.list.map(t => planExercise(t, state)) };
   }
   const i = mainCount(state);

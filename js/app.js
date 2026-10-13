@@ -249,9 +249,9 @@ function renderToday(xpData, fig) {
     return x;
   };
   const extraBlock = (kind, note) => {
-    const x = extraWorkout(kind);
+    const x = extraWorkout(kind, state);
     return `<div class="stack"><h2 class="display">${x.title}</h2><span class="muted">${esc(x.focus)}</span>${note ? `<span class="muted small">${note}</span>` : ''}</div>
-      <div class="row between small muted"><span>≈ ${estMinutes(x)} min</span><span>${kind === 'mob' ? '+30 XP' : 'kurzes Training'}</span></div>
+      <div class="row between small muted"><span>≈ ${estMinutes(x)} min</span><span>${kind === 'mob' ? '+30 XP' : x.neck ? 'mit Nacken &amp; Trapez' : 'kurzes Training'}</span></div>
       ${workoutPreview(x)}<button class="btn ${kind === 'mob' ? 'ghost' : ''}" data-act="start" data-kind="${kind}">${kind === 'mob' ? 'Mobilität starten' : 'Feinschliff starten'}</button>`;
   };
 
@@ -720,7 +720,7 @@ function renderSettings() {
     <div class="days">${order.map(d => `<button class="${st.days.includes(d) ? 'on' : ''}" data-act="day" data-d="${d}">${DAY_NAMES[d]}</button>`).join('')}</div>
     ${sw('plus', st.plus, 'Plus-Blöcke', 'Zusatzsätze für Schultern, obere Brust, Rücken, Arme und Bauch')}
     ${sw('fein', st.fein, 'Feinschliff am Montag', 'Kurzes viertes Training, sonst am Freitag')}
-    ${sw('neckSat', st.neckSat, 'Nacken &amp; Trapez', 'Jedes dritte Haupttraining der Woche, am Schluss')}
+    ${sw('neckSat', st.neckSat, 'Nacken &amp; Trapez', 'Im Feinschliff am Montag. Ist der Feinschliff ausgeschaltet, am Samstag.')}
     ${sw('deadliftAlt', st.deadliftAlt, 'Kreuzheben im Wechsel', 'Jedes zweite Workout B mit Sumo-Kreuzheben statt der normalen Beinübungen')}
     <div class="setting"><div class="t">Spezialisierung Tag A</div><select class="sel" id="specA2" data-change="specA">${a}</select></div>
     <div class="setting"><div class="t">Spezialisierung Tag B</div><select class="sel" id="specB2" data-change="specB">${b}</select></div>
