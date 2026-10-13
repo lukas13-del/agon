@@ -147,6 +147,9 @@ export const EX = {
   front_squat: { name: 'Frontkniebeugen', eq: 'bb', muscles: 'Vordere Oberschenkel, Rumpf',
     steps: ['Stange vorne auf den Schultern, Ellbogen hoch.', 'Aufrecht tief absenken.', 'Knie Richtung Zehen.', 'Kraftvoll aufstehen.'],
     tips: ['Ellbogen bleiben oben.', 'Oberkörper aufrecht.'] },
+  straight_arm_pulldown: { name: 'Überzüge am Kabel', eq: 'cable', muscles: 'Breiter Rücken (Lat)',
+    steps: ['Vor dem oberen Kabelzug stehen, Stange oder Seil mit gestreckten Armen fassen.', 'Leicht nach vorne lehnen, Arme bleiben fast gestreckt.', 'Griff im Bogen bis zu den Oberschenkeln ziehen.', 'Langsam zurück, bis die Arme über Kopfhöhe sind.'],
+    tips: ['Die Bewegung kommt aus der Schulter, nicht aus den Ellbogen.', 'Lat unten bewusst anspannen.'] },
   lat_pulldown: { name: 'Latzug eng', eq: 'cable', muscles: 'Breiter Rücken, Bizeps',
     steps: ['Oberschenkel unter dem Polster fixieren, engen Griff fassen.', 'Brust raus, leicht zurücklehnen.', 'Griff zur oberen Brust ziehen, Ellbogen nach unten.', 'Kontrolliert ganz nach oben strecken.'],
     tips: ['Nicht mit dem Oberkörper reissen.', 'Oben volle Dehnung im Rücken.'] },
@@ -383,24 +386,25 @@ const SPLIT2 = {
 };
 
 // Plus-Blöcke (Agon Plus): Zusatzvolumen für die V-Form, ohne Waden
-const PLUS_A = [e('lat_pulldown', straight(3, 8, 12, 90)), e('cable_lateral', straight(3, 12, 20, 60)), e('cable_rope_curl', straight(2, 10, 12, 60))];
-const PLUS_B = [e('cable_fly_low', straight(3, 10, 15, 60)), e('lateral_raise', straight(3, 12, 20, 60)), e('rope_oh_ext', straight(2, 10, 12, 60)), e('cable_crunch', straight(3, 10, 15, 60))];
+// Ohne Arm-Isolation: Bizeps und Trizeps bleiben auf dem Niveau des Buchs
+const PLUS_A = [e('straight_arm_pulldown', straight(3, 10, 15, 75)), e('cable_lateral', straight(3, 12, 20, 60))];
+const PLUS_B = [e('cable_fly_low', straight(3, 10, 15, 60)), e('lateral_raise', straight(3, 12, 20, 60)), e('cable_crunch', straight(3, 10, 15, 60))];
 export const PLUS = {
   AB: { A: PLUS_A, B: PLUS_B, BD: PLUS_B },
   MEGA: { A: [e('cable_crunch', straight(3, 10, 15, 60))], B: [e('lateral_raise', straight(3, 12, 20, 60))] },
   ABC: {
-    A: [e('cable_fly_low', straight(3, 10, 15, 60)), e('cable_rope_curl', straight(2, 10, 12, 60))],
+    A: [e('cable_fly_low', straight(3, 10, 15, 60))],
     B: [e('lateral_raise', straight(3, 12, 20, 60)), e('cable_crunch', straight(3, 10, 15, 60))],
-    C: [e('lat_pulldown', straight(3, 8, 12, 90)), e('rope_oh_ext', straight(2, 10, 12, 60))],
+    C: [e('straight_arm_pulldown', straight(3, 10, 15, 75))],
   },
 };
 
 // 4. Tag: kurzer Feinschliff (Mo, sonst Fr)
-export const FEIN = { title: 'Feinschliff', focus: 'Schultern, Arme, Rumpf, Griff', list: [
+export const FEIN = { title: 'Feinschliff', focus: 'Schultern, Brust, Rücken, Rumpf, Griff', list: [
   e('lateral_raise', straight(3, 15, 20, 60)),
   e('seated_rev_fly', straight(2, 12, 15, 60)),
-  e('cable_rope_curl', straight(2, 10, 12, 45)),
-  e('rope_pushdown', straight(2, 10, 12, 60)),
+  e('cable_fly_low', straight(2, 12, 15, 60)),
+  e('straight_arm_pulldown', straight(2, 12, 15, 60)),
   e('pallof', straight(2, 10, 10, 45)),
   e('side_plank', straight(2, 30, 45, 30)),
   e('farmer_walk', straight(2, 30, 40, 90)),
@@ -495,13 +499,13 @@ export const MUSCLES = [
   { k: 'chest', label: 'Brust, vor allem obere', lo: 10, hi: 14 },
   { k: 'lats', label: 'Lat, Rückenbreite', lo: 10, hi: 14 },
   { k: 'upper_back', label: 'Hintere Schulter, oberer Rücken', lo: 8, hi: 12 },
-  { k: 'biceps', label: 'Bizeps', lo: 8, hi: 12 },
-  { k: 'triceps', label: 'Trizeps', lo: 8, hi: 12 },
+  { k: 'biceps', label: 'Bizeps', lo: 6, hi: 10 },
+  { k: 'triceps', label: 'Trizeps', lo: 6, hi: 10 },
   { k: 'quads', label: 'Oberschenkel vorne', lo: 6, hi: 10 },
   { k: 'hams', label: 'Oberschenkel hinten, Gesäss', lo: 6, hi: 10 },
   { k: 'abs', label: 'Bauch, Rumpf', lo: 8, hi: 12 },
-  { k: 'neck', label: 'Nacken, Trapez', lo: 4, hi: 8 },
-  { k: 'forearms', label: 'Unterarm, Griff', lo: 2, hi: 6 },
+  { k: 'neck', label: 'Nacken, Trapez', lo: 8, hi: 12 },
+  { k: 'forearms', label: 'Unterarm, Griff', lo: 2, hi: 8 },
 ];
 // Anteil pro Satz: 1 = direkt, 0.5 = mittrainiert
 export const EX_MUSCLES = {
@@ -512,7 +516,7 @@ export const EX_MUSCLES = {
   lateral_raise: { side_delt: 1 }, cable_lateral: { side_delt: 1 }, db_upright_row: { side_delt: 1, neck: 0.5 },
   face_pull: { upper_back: 1 }, seated_rev_fly: { upper_back: 1 }, machine_rear_delt: { upper_back: 1 },
   weighted_chinup: { lats: 1, biceps: 0.5 }, weighted_cg_chinup: { lats: 1, biceps: 0.5 }, weighted_pullup: { lats: 1, upper_back: 0.5 },
-  lat_pulldown: { lats: 1, biceps: 0.5 }, cable_row: { upper_back: 1, lats: 0.5 }, machine_row: { upper_back: 1, lats: 0.5 },
+  lat_pulldown: { lats: 1, biceps: 0.5 }, straight_arm_pulldown: { lats: 1 }, cable_row: { upper_back: 1, lats: 0.5 }, machine_row: { upper_back: 1, lats: 0.5 },
   rope_pushdown: { triceps: 1 }, oh_tri_ext_1arm: { triceps: 1 }, db_oh_tri_ext: { triceps: 1 }, rope_oh_ext: { triceps: 1 }, skull_crusher: { triceps: 1 },
   inc_hammer_curl: { biceps: 1, forearms: 0.5 }, standing_hammer: { biceps: 1, forearms: 0.5 }, seated_hammer: { biceps: 1, forearms: 0.5 },
   inc_db_curl: { biceps: 1 }, machine_curl: { biceps: 1 }, cable_rope_curl: { biceps: 1, forearms: 0.5 }, bb_curl: { biceps: 1 },
