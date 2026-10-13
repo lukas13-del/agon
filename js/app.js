@@ -226,7 +226,8 @@ function renderToday(xpData, fig) {
   if (!state.profile || !state.profile.wrist || !state.profile.height) due.push('Grunddaten');
   if (!lastMeas || daysSince(lastMeas) >= 14) due.push('Messung');
   if (!lastPhoto || daysSince(lastPhoto) >= 28) due.push('Fotos');
-  if (due.length) h += `<button class="due" data-act="go" data-view="body"><span>${due.join(', ').replace(/, ([^,]*)$/, ' und $1')} fällig</span><span class="muted">Körper ›</span></button>`;
+  if (due.includes('Grunddaten')) h += `<button class="due" data-act="pasteOpen"><span>Deine Werte fehlen noch</span><span class="muted">Werte einfügen ›</span></button>`;
+  else if (due.length) h += `<button class="due" data-act="go" data-view="body"><span>${due.join(', ').replace(/, ([^,]*)$/, ' und $1')} fällig</span><span class="muted">Körper ›</span></button>`;
   h += `<div class="stack"><span class="muted small">${DAY_LONG[today.getDay()]}, ${fmtDate(today)}</span>`;
 
   const mainBlock = (label, heading = true) => {
@@ -467,6 +468,13 @@ function renderSheet() {
         return `<div class="stack"><span class="small muted">${l}</span><div class="pcmp">${im(a, from)}${im(b, to)}</div></div>`;
       }).join('')}
       <button class="btn ghost" data-act="closeSheet">Schliessen</button>`;
+  } else if (sheet.type === 'paste') {
+    body = `<div class="stack"><span class="eyebrow">Werte einfügen</span><h2 class="display">Werte als Text</h2>
+      <span class="muted small">Füge eine Zeile wie «Grösse 180, Handgelenk 18, Gewicht 80, Taille 85, Schulter 125 …» ein. Agon erkennt Grösse, Handgelenk, Gewicht, Taille, Schulter, Brust, Oberarm, Unterarm, Nacken, Oberschenkel und ein Datum. Fehlende Werte bleiben, wie sie sind.</span></div>
+      <textarea id="pasteIn" class="paste" rows="5" placeholder="Text hier einfügen"></textarea>
+      <button class="btn ghost" data-act="pasteClip">Aus der Zwischenablage holen</button>
+      <button class="btn" data-act="pasteApply">Übernehmen</button>
+      <button class="btn ghost" data-act="closeSheet">Abbrechen</button>`;
   } else if (sheet.type === 'reset') {
     body = `<div class="stack"><h2 class="display">Alle Daten löschen?</h2><span class="muted small">Alle Trainings, Messungen, Punkte und Gewichte werden gelöscht. Sichere vorher eine Kopie.</span></div>
       <button class="btn danger" data-act="resetDo">Endgültig löschen</button><button class="btn ghost" data-act="closeSheet">Abbrechen</button>`;
@@ -508,7 +516,8 @@ function renderBody(xpData, fig) {
     <div class="figbar big"><i style="width:${fig.score == null ? 0 : Math.round(fig.score * 100)}%"></i></div>
     ${t ? '' : '<span class="small"><b>Zuerst Grösse und Handgelenk eintragen.</b> Daraus berechnet Agon deine Zielmasse. Beides kannst du direkt bei «Messung eintragen» erfassen.</span>'}
     <span class="small muted">100 % entspricht den klassischen Proportionen aus deinem Handgelenk: schmale Taille, breite Schultern im goldenen Schnitt, passende Arme, Brust und Nacken, dazu Kraft. Wirst du besser, gibt es Punkte, entfernst du dich davon, gibt es Abzüge (50 XP pro Prozentpunkt).</span>
-    <button class="btn" data-act="measOpen">Messung eintragen</button></div>`;
+    <button class="btn" data-act="measOpen">Messung eintragen</button>
+    <button class="link" data-act="pasteOpen" style="align-self:center">Werte als Text einfügen</button></div>`;
   h += `<div class="card"><span class="eyebrow">Kalorien</span>${n ? `<div class="row between"><span class="display" style="font-size:30px">${n.kcal.toLocaleString('de-CH')} kcal</span><span class="chipx">${n.phase === 'diaet' ? 'Diät' : 'Aufbau'}</span></div>
     <span class="small muted">Heute ${n.trainDay ? 'Trainingstag (+150)' : 'Ruhetag (−100)'}. Wochenschnitt ${n.base.toLocaleString('de-CH')} kcal. Agon passt die Zahl alle 2 Wochen an deinen Gewichtsverlauf an.</span>` : '<span class="small muted">Trag auf dem Heute-Screen dein Körpergewicht ein.</span>'}</div>`;
   const parts = new Map(fig.parts.map(p => [p.k, p]));
@@ -713,6 +722,7 @@ function renderSettings() {
   </div>
   <div class="card"><span class="eyebrow">Daten</span>
     <span class="small muted">Deine Daten liegen nur auf diesem iPhone. Sichere regelmässig eine Kopie in iCloud Drive.</span>
+    <button class="btn ghost" data-act="pasteOpen">Werte als Text einfügen</button>
     <button class="btn ghost" data-act="export">Sicherung speichern</button>
     <label class="btn ghost" for="importIn">Sicherung oder Startwerte laden</label><input type="file" id="importIn" accept="application/json,.json" data-change="import" hidden>
     <button class="link" data-act="resetAsk" style="align-self:flex-start;color:var(--danger)">Alle Daten löschen</button>
@@ -898,6 +908,48 @@ function finishSession() {
   afterChange(); render(); window.scrollTo(0, 0);
 }
 
+// Werte aus Text erkennen, z. B. «Grösse 180, Handgelenk 18, Gewicht 80, Taille 85, Datum 01.01.2027»
+const PASTE_FIELDS = [
+  ['height', /(?:körper)?gr(?:ö|oe|o)(?:ss|ß|s)e\D{0,6}?(\d{3}(?:[.,]\d+)?)/i, 120, 230],
+  ['wrist', /handgelenk\D{0,6}?(\d{1,2}(?:[.,]\d+)?)/i, 10, 30],
+  ['kg', /(?:körper)?gewicht\D{0,6}?(\d{2,3}(?:[.,]\d+)?)/i, 30, 250],
+  ['waist', /taille\D{0,6}?(\d{2,3}(?:[.,]\d+)?)/i, 40, 200],
+  ['shoulders', /schulter\w*\D{0,6}?(\d{2,3}(?:[.,]\d+)?)/i, 60, 200],
+  ['chest', /brust\w*\D{0,6}?(\d{2,3}(?:[.,]\d+)?)/i, 50, 200],
+  ['arm', /(?:oberarm|bizeps)\w*\D{0,6}?(\d{2}(?:[.,]\d+)?)/i, 15, 70],
+  ['forearm', /unterarm\w*\D{0,6}?(\d{2}(?:[.,]\d+)?)/i, 15, 60],
+  ['neck', /(?:nacken|hals)\w*\D{0,6}?(\d{2}(?:[.,]\d+)?)/i, 25, 60],
+  ['thigh', /oberschenkel\w*\D{0,6}?(\d{2,3}(?:[.,]\d+)?)/i, 30, 100],
+];
+function applyPastedValues(text) {
+  const t = String(text || '');
+  const found = {};
+  for (const [k, re, lo, hi] of PASTE_FIELDS) {
+    const m = t.match(re);
+    if (!m) continue;
+    const v = parseFloat(m[1].replace(',', '.'));
+    if (v >= lo && v <= hi) found[k] = v;
+  }
+  const dm = t.match(/datum\D{0,4}(\d{1,2})\.(\d{1,2})\.(\d{2,4})/i);
+  let d = iso(new Date());
+  if (dm) { const y = dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]; const dd = new Date(y, +dm[2] - 1, +dm[1]); if (!isNaN(dd) && dd <= new Date()) d = iso(dd); }
+  const n = Object.keys(found).length;
+  if (!n) { toast('Keine Werte erkannt. Beispiel: Grösse 180, Taille 85'); return; }
+  if (found.height || found.wrist) state.profile = { ...(state.profile || {}), ...(found.height ? { height: found.height } : {}), ...(found.wrist ? { wrist: found.wrist } : {}) };
+  if (found.kg) state.bw = state.bw.filter(b => b.d !== d).concat([{ d, kg: found.kg }]).sort((x, y) => x.d.localeCompare(y.d));
+  const m = { d };
+  for (const x of MEASURES) if (found[x.k]) m[x.k] = found[x.k];
+  if (Object.keys(m).length > 1) {
+    const same = (state.meas || []).find(x => x.d === d);
+    if (same) Object.assign(same, m); else state.meas = (state.meas || []).concat([m]);
+  }
+  sheet = null;
+  afterChange();
+  view = 'body';
+  render(); window.scrollTo(0, 0);
+  toast(`${n} ${n === 1 ? 'Wert' : 'Werte'} übernommen`);
+}
+
 function saveMeasurement() {
   const m = { d: iso(new Date()) };
   const num = id => { const el = $(id); return el ? parseFloat(String(el.value).replace(',', '.')) : NaN; };
@@ -1077,6 +1129,15 @@ document.addEventListener('click', ev => {
     case 'photoDelAsk': sheet.confirm = true; render(); break;
     case 'photoDel': deletePhoto(sheet.id).then(loadPhotos).then(() => { sheet = null; render(); toast('Foto gelöscht'); }); break;
     case 'compareOpen': sheet = { type: 'compare' }; render(); break;
+    case 'pasteOpen': sheet = { type: 'paste' }; render(); break;
+    case 'pasteClip': {
+      const box = $('#pasteIn');
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(t => { box.value = t; }).catch(() => toast('Lange auf das Feld tippen und «Einsetzen» wählen'));
+      } else toast('Lange auf das Feld tippen und «Einsetzen» wählen');
+      break;
+    }
+    case 'pasteApply': applyPastedValues($('#pasteIn').value); break;
     default: break;
   }
 });

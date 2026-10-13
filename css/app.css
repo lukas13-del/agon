@@ -308,3 +308,4 @@ main.session { padding-bottom: calc(var(--safe-b) + 24px); min-height: 100vh; mi
 .pbig { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 14px; background: var(--bg); }
 .pcmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pcmp img, .pcmp .pempty { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+textarea.paste { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg); font-family: var(--f-mono); font-size: 14px; resize: vertical; -webkit-user-select: text; user-select: text; }
