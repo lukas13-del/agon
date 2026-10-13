@@ -352,11 +352,11 @@ const FIG = {
 
   // Nacken
   neck_ext: { v: 's', hold: 'plate', mv: 'head', props: [{ k: 'pad', p: [[6, 96.5], [76, 96.5]] }, { k: 'post', x: 14, y: 97 }, { k: 'post', x: 68, y: 97 }],
-    s: { hip: [50, 91], t: 90, hd: 20, ln: [-90, -90, 0], an: [10, 60], plate: [3, -6] },
-    e: { hip: [50, 91], t: 90, hd: 120, ln: [-90, -90, 0], an: [10, 60], plate: [-4, -6] } },
+    s: { hip: [50, 91], t: 90, hd: 20, ln: [-90, -90, 0], an: { to: [86, 93], b: 1 }, plate: [3, -6] },
+    e: { hip: [50, 91], t: 90, hd: 120, ln: [-90, -90, 0], an: { to: [83, 81], b: 1 }, plate: [-4, -6] } },
   neck_curl: { v: 's', hold: 'plate', mv: 'head', props: [{ k: 'pad', p: [[6, 96.5], [76, 96.5]] }, { k: 'post', x: 14, y: 97 }, { k: 'post', x: 68, y: 97 }],
-    s: { hip: [50, 91], t: 90, hd: 40, ln: [-90, -90, 180], an: [150, 30], plate: [4, -4] },
-    e: { hip: [50, 91], t: 90, hd: 140, ln: [-90, -90, 180], an: [150, 30], plate: [3, -6] } },
+    s: { hip: [50, 91], t: 90, hd: 40, ln: [-90, -90, 180], an: { to: [89, 93], b: -1 }, plate: [4, -4] },
+    e: { hip: [50, 91], t: 90, hd: 140, ln: [-90, -90, 180], an: { to: [88, 79], b: -1 }, plate: [3, -6] } },
 
   // Mobilität
   dead_hang: { v: 's', floorless: true, single: true, props: [pullBar], s: { hip: [60, 72], t: 180, an: [180, 180], ln: [3, 2, 30] } },
